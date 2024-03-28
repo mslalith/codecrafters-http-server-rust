@@ -71,7 +71,11 @@ fn handle_stream(mut stream: TcpStream) {
         let directory = args.get(2);
         match directory {
             Some(dir) => {
-                let path = format!("{dir}/{filename}");
+                let path = if dir.ends_with("/") {
+                    format!("{dir}{filename}")
+                } else {
+                    format!("{dir}/{filename}")
+                };
                 let path = Path::new(path.as_str());
                 let path_display = path.display().to_string();
                 println!("path: {path_display}");
