@@ -105,11 +105,11 @@ fn handle_stream(mut stream: TcpStream) {
                         respond_not_found(&mut stream);
                     }
                 } else if method == "POST" {
-                    // let file = if path.exists() {
-                    //     File::open(path).unwrap()
-                    // } else {
-                    //     File::create(path).unwrap()
-                    // };
+                    let mut file = if path.exists() {
+                        File::open(path).unwrap()
+                    } else {
+                        File::create(path).unwrap()
+                    };
                     let rest = lines
                         .skip_while(|l| !l.is_empty())
                         .skip(1)
@@ -119,7 +119,10 @@ fn handle_stream(mut stream: TcpStream) {
                         buf.push_str(ele);
                         println!("rest: {}", ele);
                     }
-                    respond_ok(&mut stream, 201, None, None, None);
+                    match file.write_all(buf.as_bytes()) {
+                        Ok(_) => respond_ok(&mut stream, 201, None, None, None),
+                        Err(_) => respond_not_found(&mut stream),
+                    }
                 }
             }
             None => respond_not_found(&mut stream),
