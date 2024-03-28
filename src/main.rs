@@ -19,15 +19,11 @@ fn main() {
                 println!("s = {s}");
                 if s == "/" {
                     respond_ok(&mut stream, None, None);
-                } else if s.starts_with("/echo/") {
-                    let mut body_vec = s.split("/").collect::<Vec<_>>();
-                    body_vec.remove(0);
-                    body_vec.remove(0);
-                    let body = body_vec.join("");
+                } else if let Some(rest) = s.strip_prefix("/echo/") {
                     respond_ok(
                         &mut stream,
                         Some(ContentType::TEXT_PLAIN),
-                        Some(body.to_owned()),
+                        Some(rest.to_owned()),
                     );
                 } else {
                     respond_not_found(&mut stream);
