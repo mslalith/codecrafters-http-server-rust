@@ -57,13 +57,24 @@ fn handle_stream(mut stream: TcpStream) {
             ),
             None => respond_not_found(&mut stream),
         };
-    } else if let Some(filename) = first.strip_prefix("/files/") {
+    } else if first.starts_with("/files/") {
+        let filename = match first.strip_prefix("/files/") {
+            Some(rest) => rest,
+            None => {
+                respond_not_found(&mut stream);
+                return;
+            }
+        };
+        println!("filename: {filename}");
         let args = env::args().collect::<Vec<_>>();
+        println!("args: {:?}", args);
         let directory = args.get(2);
         match directory {
             Some(dir) => {
                 let path = format!("{dir}/{filename}");
                 let path = Path::new(path.as_str());
+                let path_display = path.display().to_string();
+                println!("path: {path_display}");
                 if path.exists() {
                     match std::fs::read(path) {
                         Ok(content) => respond_ok(
