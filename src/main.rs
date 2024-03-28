@@ -1,6 +1,5 @@
 use std::{
     env,
-    fs::File,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::Path,
@@ -81,15 +80,13 @@ fn handle_stream(mut stream: TcpStream) {
                 let path_display = path.display().to_string();
                 println!("path: {path_display}");
                 if path.exists() {
-                    let file = File::create(path).unwrap();
-                    match file.metadata() {
-                        Ok(metadata) => respond_ok(
-                            &mut stream,
-                            Some(ContentType::FILE),
-                            None,
-                            Some(metadata.len() as usize),
-                        ),
-                        Err(_) => respond_not_found(&mut stream),
+                    match std::fs::read(path) {
+                        Ok(content) => {
+                            let len = content.len();
+                            let body = String::from_utf8(content).unwrap();
+                            respond_ok(&mut stream, Some(ContentType::FILE), Some(body), Some(len))
+                        }
+                        Err(_) => todo!(),
                     }
                 } else {
                     respond_not_found(&mut stream);
