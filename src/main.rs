@@ -1,5 +1,6 @@
 use std::{
     env,
+    fs::File,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::Path,
@@ -29,14 +30,17 @@ fn handle_stream(mut stream: TcpStream) {
 
     let mut lines = request.split("\r\n");
     let first_line = lines.nth(0).unwrap();
-    let first = first_line.split(" ").collect::<Vec<_>>()[1];
+    let splits = first_line.split(" ").collect::<Vec<_>>();
+    let method = splits[0];
+    let first = splits[1];
     // println!("first_line = {first_line}");
 
     if first == "/" {
-        respond_ok(&mut stream, None, None, None);
+        respond_ok(&mut stream, 200, None, None, None);
     } else if let Some(rest) = first.strip_prefix("/echo/") {
         respond_ok(
             &mut stream,
+            200,
             Some(ContentType::TEXT_PLAIN),
             Some(rest.to_owned()),
             Some(rest.len()),
@@ -51,6 +55,7 @@ fn handle_stream(mut stream: TcpStream) {
         match body {
             Some(body) => respond_ok(
                 &mut stream,
+                200,
                 Some(ContentType::TEXT_PLAIN),
                 Some(body.to_owned()),
                 Some(body.len()),
@@ -79,17 +84,42 @@ fn handle_stream(mut stream: TcpStream) {
                 let path = Path::new(path.as_str());
                 let path_display = path.display().to_string();
                 println!("path: {path_display}");
-                if path.exists() {
-                    match std::fs::read(path) {
-                        Ok(content) => {
-                            let len = content.len();
-                            let body = String::from_utf8(content).unwrap();
-                            respond_ok(&mut stream, Some(ContentType::FILE), Some(body), Some(len))
+                println!("method: {method}");
+                if (method == "GET") {
+                    if path.exists() {
+                        match std::fs::read(path) {
+                            Ok(content) => {
+                                let len = content.len();
+                                let body = String::from_utf8(content).unwrap();
+                                respond_ok(
+                                    &mut stream,
+                                    200,
+                                    Some(ContentType::FILE),
+                                    Some(body),
+                                    Some(len),
+                                )
+                            }
+                            Err(_) => todo!(),
                         }
-                        Err(_) => todo!(),
+                    } else {
+                        respond_not_found(&mut stream);
                     }
-                } else {
-                    respond_not_found(&mut stream);
+                } else if method == "POST" {
+                    // let file = if path.exists() {
+                    //     File::open(path).unwrap()
+                    // } else {
+                    //     File::create(path).unwrap()
+                    // };
+                    let rest = lines
+                        .skip_while(|l| !l.is_empty())
+                        .skip(1)
+                        .collect::<Vec<_>>();
+                    let mut buf = String::new();
+                    for ele in rest {
+                        buf.push_str(ele);
+                        println!("rest: {}", ele);
+                    }
+                    respond_ok(&mut stream, 201, None, None, None);
                 }
             }
             None => respond_not_found(&mut stream),
@@ -101,12 +131,13 @@ fn handle_stream(mut stream: TcpStream) {
 
 fn respond_ok(
     stream: &mut TcpStream,
+    code: u8,
     content_type: Option<ContentType>,
     body: Option<String>,
     len: Option<usize>,
 ) {
     let mut content = String::new();
-    content.push_str("HTTP/1.1 200 OK\r\n");
+    content.push_str(format!("HTTP/1.1 {} OK\r\n", code).as_str());
     if let Some(content_type) = content_type {
         content.push_str(format!("Content-Type: {}\r\n", content_type.0).as_str());
     }
