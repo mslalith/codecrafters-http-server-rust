@@ -1,6 +1,8 @@
 use std::{
+    env,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    path::Path,
     thread,
 };
 
@@ -31,12 +33,13 @@ fn handle_stream(mut stream: TcpStream) {
     // println!("first_line = {first_line}");
 
     if first == "/" {
-        respond_ok(&mut stream, None, None);
+        respond_ok(&mut stream, None, None, None);
     } else if let Some(rest) = first.strip_prefix("/echo/") {
         respond_ok(
             &mut stream,
             Some(ContentType::TEXT_PLAIN),
             Some(rest.to_owned()),
+            Some(rest.len()),
         );
     } else if first.starts_with("/user-agent") {
         let mut body: Option<&str> = None;
@@ -50,22 +53,53 @@ fn handle_stream(mut stream: TcpStream) {
                 &mut stream,
                 Some(ContentType::TEXT_PLAIN),
                 Some(body.to_owned()),
+                Some(body.len()),
             ),
             None => respond_not_found(&mut stream),
         };
+    } else if let Some(filename) = first.strip_prefix("/files/") {
+        let args = env::args().collect::<Vec<_>>();
+        let directory = args.get(2);
+        match directory {
+            Some(dir) => {
+                let path = format!("{dir}/{filename}");
+                let path = Path::new(path.as_str());
+                if path.exists() {
+                    match std::fs::read(path) {
+                        Ok(content) => respond_ok(
+                            &mut stream,
+                            Some(ContentType::FILE),
+                            None,
+                            Some(content.len()),
+                        ),
+                        Err(_) => todo!(),
+                    }
+                } else {
+                    respond_not_found(&mut stream);
+                }
+            }
+            None => respond_not_found(&mut stream),
+        }
     } else {
         respond_not_found(&mut stream);
     }
 }
 
-fn respond_ok(stream: &mut TcpStream, content_type: Option<ContentType>, body: Option<String>) {
+fn respond_ok(
+    stream: &mut TcpStream,
+    content_type: Option<ContentType>,
+    body: Option<String>,
+    len: Option<usize>,
+) {
     let mut content = String::new();
     content.push_str("HTTP/1.1 200 OK\r\n");
     if let Some(content_type) = content_type {
         content.push_str(format!("Content-Type: {}\r\n", content_type.0).as_str());
     }
+    if let Some(len) = len {
+        content.push_str(format!("Content-Length: {}\r\n", len).as_str());
+    }
     if let Some(body) = body {
-        content.push_str(format!("Content-Length: {}\r\n", body.len()).as_str());
         content.push_str("\r\n");
         content.push_str(format!("{}\r\n", body).as_str());
     }
@@ -85,4 +119,5 @@ struct ContentType(&'static str);
 
 impl ContentType {
     const TEXT_PLAIN: Self = Self("text/plain");
+    const FILE: Self = Self("application/octet-stream");
 }
