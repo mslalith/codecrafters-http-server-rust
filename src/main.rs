@@ -20,8 +20,10 @@ fn main() {
                 if s == "/" {
                     respond_ok(&mut stream, None, None);
                 } else if s.starts_with("/echo/") {
-                    let body = s.split("/").collect::<Vec<_>>()[2];
-                    println!("{:?}", body);
+                    let mut body_vec = s.split("/").collect::<Vec<_>>();
+                    body_vec.remove(0);
+                    body_vec.remove(0);
+                    let body = body_vec.join("");
                     respond_ok(
                         &mut stream,
                         Some(ContentType::TEXT_PLAIN),
