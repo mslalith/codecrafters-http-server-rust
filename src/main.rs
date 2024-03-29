@@ -85,7 +85,7 @@ fn handle_stream(mut stream: TcpStream) {
                 let path_display = path.display().to_string();
                 println!("path: {path_display}");
                 println!("method: {method}");
-                if (method == "GET") {
+                if method == "GET" {
                     if path.exists() {
                         match std::fs::read(path) {
                             Ok(content) => {
