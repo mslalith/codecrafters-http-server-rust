@@ -116,6 +116,7 @@ fn handle_stream(mut stream: TcpStream) {
                         .collect::<Vec<_>>();
                     let mut buf = String::new();
                     for ele in rest {
+                        let ele = ele.strip_suffix('\0').unwrap_or(ele);
                         buf.push_str(ele);
                         println!("rest: {}", ele);
                     }
