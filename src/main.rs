@@ -1,6 +1,5 @@
 use std::{
     env,
-    fs::File,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::Path,
@@ -105,18 +104,26 @@ fn handle_stream(mut stream: TcpStream) {
                         respond_not_found(&mut stream);
                     }
                 } else if method == "POST" {
-                    let rest = lines
-                        .skip_while(|l| !l.is_empty())
-                        .skip(1)
-                        .collect::<Vec<_>>();
-                    let mut buf = String::new();
-                    for ele in rest {
-                        buf.push_str(ele);
-                        println!("rest: {}", ele);
+                    let mut len: Option<usize> = None;
+                    for line in lines {
+                        if line.starts_with("Content-Length: ") {
+                            len = Some(
+                                line.split("Content-Length: ").collect::<Vec<_>>()[1]
+                                    .parse::<usize>()
+                                    .unwrap(),
+                            );
+                        }
                     }
-                    match std::fs::write(path, buf) {
-                        Ok(_) => respond_ok(&mut stream, 201, None, None, None),
-                        Err(_) => respond_not_found(&mut stream),
+                    match len {
+                        Some(len) => {
+                            let body = request.split("\r\n\r\n").nth(1).unwrap();
+                            let body = body[..len].to_string();
+                            match std::fs::write(path, body) {
+                                Ok(_) => respond_ok(&mut stream, 201, None, None, None),
+                                Err(_) => respond_not_found(&mut stream),
+                            }
+                        }
+                        None => respond_not_found(&mut stream),
                     }
                 }
             }
